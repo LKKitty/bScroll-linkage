@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="stylesheet" href="./css/reset.css">
+  <link rel="stylesheet" href="./css/listMap.css">
+  <title>联动测试</title>
+</head>
+<body>
+  <div class="listview" id="listview" ref="listview">
+    <ul class="lists-ul">
+      <li class="list-group" 
+      v-for="(list,index) in cities" 
+      :key="index"
+      ref="listGroup"
+      >
+        <h2 class="list-group-title">{{index}}</h2>
+        <ul>
+          <li class="list-group-item" v-for="item in list" :key="item.id">
+              <!-- <img class="avatar" src="./image.png"> -->
+              <span class="name">{{item.name}}</span>
+          </li>
+        </ul>
+      </li>
+    </ul>
+    <!-- 字母列表 -->
+    <div class="list-shortcut" @touchstart.stop.prevent="onShortcutTouchStart" @touchmove.stop.prevent="onShortcutTouchMove"
+    @touchend.stop.prevent="onShortcutTouchEnd">
+      <ul>
+        <li class="item" 
+        v-for="(item,index)  in shortcut" 
+        :key="index"
+        :data-index="index"
+        :class="{'current':currentIndex===index}"
+        >
+          {{item}}
+        </li>
+      </ul>
+    </div>
+  </div>
+  <!-- <script src="./js/jquery-3.3.1.min.js"></script> -->
+  <script src="./js/vue.js"></script>
+  <script src="./js/bscroll.js"></script>
+  <script src="./js/axios.min.js"></script>
+  <!-- <script src="./js/listMap.js"></script> -->
+  <script>
+    Vue.prototype.$_axios = axios
+    const ANCHOR_HEIGHT = 18
+    var scrollVue = new Vue({
+      el: '#listview',
+      data: {
+        listData: [],
+        cities: {},
+        shortcut: [],
+        currentIndex: 0,
+        scrollY: -1
+      },
+      created() {
+        this.$_axios.get('./mock/city.json')
+          .then((res) => {
+            if(res && res.data)
+            this.listData = res.data.data
+            this.cities=res.data.data.cities
+            for(item in  this.cities){
+              this.shortcut.push(item)
+            }
+          }),
+          this.touch={},
+          this.listHeight = []
+      },
+    mounted () {
+      setTimeout(() => {
+        this.scroll = new BScroll(this.$refs.listview,{
+          probeType: 3
+        })
+        this.scroll.on('scroll', (pos) => {
+            this.scrollMove(pos)
+          })
+          // this._calculateHeight()
+      },200)
+    },
+    computed: {
+
+    },
+    methods: {
+      // 点击获取列表的index
+      onShortcutTouchStart (e) {
+        let anchorIndex = this.getData(e.target,'index')
+        let firstTouch = e.touches[0]
+        this.touch.y1 = firstTouch.pageY
+        this.touch.anchorIndex = anchorIndex
+        this._scrollTo(anchorIndex)
+        console.log(anchorIndex )
+      },
+      // 移动中
+      onShortcutTouchMove(e) {
+        let firstTouch = e.touches[0]
+        this.touch.y2 = firstTouch.pageY
+        let delta =(this.touch.y2 - this.touch.y1) /ANCHOR_HEIGHT | 0
+        let anchorIndex =  parseInt(this.touch.anchorIndex) + delta
+        this._scrollTo(anchorIndex)
+      },
+      onShortcutTouchEnd(e) {
+
+      },
+      // 获取data-index
+      getData (el,name,val) {
+        const prefix = 'data-'
+        name = prefix + name
+        if(val) {
+          return el.setAttribute(name , val)
+        } else {
+          return el.getAttribute(name)
+        }
+      },
+      scrollMove(pos) {
+        this.scrollY = pos.y
+      },
+      _scrollTo(index) {
+        this.scroll.scrollToElement(this.$refs.listGroup[index])
+      },
+      _calculateHeight() {
+        this.listHeight = []
+        const list = this.$refs.listGroup
+        let height = 0
+        this.listHeight.push(height)
+        for (let i = 0; i < list.length; i++) {
+          let item = list[i]
+          height += item.clientHeight
+          this.listHeight.push(height)
+        }
+        console.log(this.listHeight)
+      }
+    },
+    watch: {
+      listData() {
+        setTimeout(() => {
+          this._calculateHeight()
+        },20)
+      },
+      scrollY(newY) {
+        const listHeight = this.listHeight
+        // 滚动到顶部
+        if(newY > 0){
+          this.currentIndex = 0
+          return
+        }
+        // 在中间部分滚动
+        for(let i=0;i<listHeight.length-1;i++){
+          let height1 = listHeight[i]
+          let height2 = listHeight[i+1]
+          if (-newY >= height1 && -newY < height2) {
+            this.currentIndex = i
+            // console.log(this.currentIndex)
+            // this.diff = height2 + newY
+            return
+          }
+        }
+        // 当滚动到底部，且-newY大于最后一个元素的上限
+        this.currentIndex = listHeight.length-2
+      }
+    }
+    })
+  </script>
+</body>
+</html>
